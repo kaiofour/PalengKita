@@ -6,7 +6,7 @@
 
         <div class="container">
             {{-- <a href="{{ route('transactions.signup') }}" class="btn btn-outline-info mb-3">Add Transaction</a> --}}
-            <a href="{{ url('/') }}" class="btn btn-outline-info mb-3">Back</a>
+            <a href="{{ url('/home') }}" class="btn btn-outline-info mb-3">Back</a>
         </div>
 
         @session('success')
@@ -60,7 +60,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center">No Student Found!</td>
+                        <td colspan="5" class="text-center">No Transactions Found!</td>
                     </tr>
                 @endforelse
             </tbody>

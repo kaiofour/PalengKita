@@ -5,8 +5,8 @@
         <h2 class="mb-4 text-white">Customers List</h2>
 
         <div class="container">
-            <a href="{{ route('customers.signup') }}" class="btn btn-outline-info mb-3">Add Customer</a>
-            <a href="{{ url('/') }}" class="btn btn-outline-info mb-3">Back</a>
+            <a href="{{ route('customers.create') }}" class="btn btn-outline-info mb-3">Add Customer</a>
+            <a href="{{ url('/home') }}" class="btn btn-outline-info mb-3">Back</a>
         </div>
 
         @session('success')
@@ -22,20 +22,19 @@
                     <th>#</th>
                     <th>Name</th>
                     <th>Email</th>
-                    <th>Money Owned</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($customers as $customer)
                     <tr>
-                        <td>{{ $customer->customer_id }}</td>
-                        <td>{{ $customer->customer_name }}</td>
-                        <td>{{ $customer->cart }}</td>
-                        <td>{{ $customer->money_owned }}</td>
+                        <td>{{ $customer->id }}</td>
+                        <td>{{ $customer->name }}</td>
+                        <td>{{ $customer->email }}</td>
                         <td>
-                            <a href="{{ route('customers.displayCustomer', $customer->customer_id) }}" class="btn btn-outline-warning">View</a>
-                            <a href="{{ route('customers.edit', $customer->customer_id) }}" class="btn btn-outline-info">Edit</a>
-                            <form action="{{ route('customers.delete', $customer->customer_id) }}" method="POST" class="d-inline">
+                            <a href="{{ route('customers.displayCustomer', $customer->id) }}" class="btn btn-outline-warning">View</a>
+                            <a href="{{ route('customers.edit', $customer->id) }}" class="btn btn-outline-info">Edit</a>
+                            <form action="{{ route('customers.delete', $customer->id) }}" method="POST" class="d-inline">
                             @csrf
                             @method('DELETE')
                             <button
@@ -48,7 +47,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center">No Student Found!</td>
+                        <td colspan="4" class="text-center">No Customers Found!</td>
                     </tr>
                 @endforelse
             </tbody>

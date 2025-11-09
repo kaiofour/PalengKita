@@ -10,7 +10,7 @@
 
                 <div class="card bg-dark text-white mt-4">
                     <div class="card-body border border-light rounded">
-                        <form action="{{ route('customers.update', $customer->customer_id) }}" method="POST">
+                        <form action="{{ route('customers.update', $customer->id) }}" method="POST">
                             @csrf
                             @method('PUT')
                             <div class="mb-3">
@@ -18,8 +18,8 @@
                                 <input
                                     type="text"
                                     class="form-control bg-dark text-white @error('name') is-invalid @enderror"
-                                    name="customer_name"
-                                    value="{{old('name', $customer->customer_name)}}">
+                                    name="name"
+                                    value="{{old('name', $customer->name)}}">
                                 @error('name')
                                         <div class="invalid-feedback">{{$message}}</div>
                                 @enderror
@@ -41,7 +41,7 @@
                                     type="password"
                                     class="form-control bg-dark text-white @error('password') is-invalid @enderror"
                                     name="password"
-                                    value="{{old('password', $customer->password)}}">
+                                    placeholder="Leave blank to keep current password">
                                 @error('password')
                                         <div class="invalid-feedback">{{$message}}</div>
                                 @enderror

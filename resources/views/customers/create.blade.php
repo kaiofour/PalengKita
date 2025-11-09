@@ -5,10 +5,10 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header">{{ __('Sign Up') }}</div>
+                <div class="card-header">{{ __('Add New Customer') }}</div>
 
                 <div class="card-body">
-                    <form method="POST" action="{{ route('signup.store') }}">
+                    <form method="POST" action="{{ route('customers.store') }}">
                         @csrf
 
                         <div class="row mb-3">
@@ -64,7 +64,7 @@
                         <div class="row mb-0">
                             <div class="col-md-6 offset-md-4">
                                 <button type="submit" class="btn btn-primary">
-                                    {{ __('Sign Up') }}
+                                    {{ __('Add Customer') }}
                                 </button>
                             </div>
                         </div>
@@ -73,5 +73,4 @@
             </div>
         </div>
     </div>
-</div>
 @endsection

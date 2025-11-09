@@ -7,9 +7,8 @@
                 <h1 class="text-white">Customer Details</h1>
                 <div class="card bg-dark text-white mt-4">
                     <div class="card-body border border-success rounded">
-                        <h5 class="card-title"><strong>Name:</strong> {{ $customer->customer_name }} </h5>
+                        <h5 class="card-title"><strong>Name:</strong> {{ $customer->name }} </h5>
                         <p class="card-text"><strong>Email:</strong> {{ $customer->email }} </p>
-                        <p class="card-text"><strong>money_owned:</strong> {{ $customer->money_owned }} </p>
                         <a href="{{ route('customers.index') }}" class="btn btn-secondary">Back to List</a>
                     </div>
                 </div>
