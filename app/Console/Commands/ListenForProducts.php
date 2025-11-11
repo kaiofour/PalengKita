@@ -39,6 +39,7 @@ class ListenForProducts extends Command
 
             $conn->on('message', function($msg) use ($conn) {
                 $this->info("Received: {$msg}");
+                \Illuminate\Support\Facades\Log::info("WebSocket Message Received: " . $msg); // Add this line for logging
                 $products = json_decode($msg, true);
 
                 if (json_last_error() === JSON_ERROR_NONE) {
