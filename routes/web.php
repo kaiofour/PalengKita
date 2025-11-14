@@ -50,4 +50,19 @@ Route::middleware(['check.type:admin'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/transactions', [TransactionsController::class, 'index'])->name('transactions.index');
+
+    // add
+    Route::get('/transactions/create', [TransactionsController::class, 'create'])->name('transactions.create');
+    Route::post('/transactions', [TransactionsController::class, 'store'])->name('transactions.store');
+
+    // view one
+    Route::get('/transactions/{transaction}', [TransactionsController::class, 'show'])->name('transactions.show');
+
+    // edit
+    Route::get('/transactions/{transaction}/edit', [TransactionsController::class, 'edit'])->name('transactions.edit');
+    Route::put('/transactions/{transaction}', [TransactionsController::class, 'update'])->name('transactions.update');
+
+    // delete
+    Route::delete('/transactions/{transaction}', [TransactionsController::class, 'destroy'])->name('transactions.destroy');
+
 });
