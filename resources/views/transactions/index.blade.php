@@ -5,7 +5,7 @@
         <h2 class="mb-4 text-white">Transactions List</h2>
 
         <div class="container">
-            {{-- <a href="{{ route('transactions.signup') }}" class="btn btn-outline-info mb-3">Add Transaction</a> --}}
+            <a href="{{ route('transactions.create') }}" class="btn btn-outline-info mb-3">Add Transaction</a>
             <a href="{{ url('/home') }}" class="btn btn-outline-info mb-3">Back</a>
         </div>
 
@@ -20,16 +20,17 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Transaction</th>
+                    <th>Customer ID</th>
                     <th>Cart</th>
                     <th>Overall Price</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($transactions as $transaction)
                     <tr>
                         <td>{{ $transaction->transaction_id }}</td>
-                        <td>{{ $transaction->transaction_name }}</td>
+                        <td>{{ $transaction->customer_id }}</td>
                         <td>
                             @php
                                 $cart = json_decode($transaction->cart, true);
@@ -37,25 +38,37 @@
 
                             <ul>
                                 @foreach($cart as $item)
-                                    <li id="{{ $item['bundle_id'] }}">
-                                        Name: {{ $item['product_id'] }} ({{ $item['quantity'] }}x) = ${{ $item['overall_price'] }}
+                                    <li>
+                                        Product ID: {{ $item['product_id'] }}
+                                        <br>
+                                        Quantity: ({{ $item['qty'] }}x)
                                     </li>
                                 @endforeach
                             </ul>
                         </td>
                         <td>{{ $transaction->overall_price }}</td>
                         <td>
-                            {{-- <a href="{{ route('transactions.displaytransaction', $transaction->transaction_id) }}" class="btn btn-outline-warning">View</a>
-                            <a href="{{ route('transactions.edit', $transaction->transaction_id) }}" class="btn btn-outline-info">Edit</a>
-                            <form action="{{ route('transactions.delete', $transaction->transaction_id) }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('DELETE')
-                            <button
-                                type="submit"
-                                class="btn btn-outline-danger"
-                                onClick="return confirm('Are you sure?')"
-                            >Delete</button>
-                            </form> --}}
+                            <a href="{{ route('transactions.show', $transaction->transaction_id) }}"
+                            class="btn btn-outline-warning btn-sm">
+                                View
+                            </a>
+
+                            <a href="{{ route('transactions.edit', $transaction->transaction_id) }}"
+                            class="btn btn-outline-info btn-sm">
+                                Edit
+                            </a>
+
+                            <form action="{{ route('transactions.destroy', $transaction->transaction_id) }}"
+                                method="POST"
+                                class="d-inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="btn btn-outline-danger btn-sm"
+                                        onclick="return confirm('Are you sure?')">
+                                    Delete
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 @empty
