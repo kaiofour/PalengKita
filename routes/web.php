@@ -4,8 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomersController;
 use App\Http\Controllers\TransactionsController;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Customer\PurchaseController;
-
 
 Route::get('/', function () {
     return redirect()->route('signin');
@@ -18,17 +16,21 @@ Route::get('/signin', [AuthController::class, 'signin'])->name('signin');
 Route::post('/signin', [AuthController::class, 'authenticate'])->name('signin.authenticate');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// == AUTHENTICATED USERS (Customers & Admin) ==
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', function () {
         return view('home');
     })->name('home');
 
-    // == CUSTOMER PURCHASES ==
-    Route::get('/purchases', [PurchaseController::class, 'index'])->name('customer.purchases.index');
-    Route::get('/api/products', [PurchaseController::class, 'getProducts'])->name('customer.api.products');
+    // == CUSTOMER MARKETPLACE (UPDATED) ==
+    // 1. Shows the "Make Purchase" page
+    Route::get('/purchases', [TransactionsController::class, 'marketplace'])->name('customer.purchases.index');
+    
+    // 2. Handles the Checkout button click
+    Route::post('/customer/checkout', [TransactionsController::class, 'checkout'])->name('customer.checkout');
 });
 
-// == CUSTOMER ==
+// == ADMIN: CUSTOMER MANAGEMENT ==
 Route::middleware(['check.type:admin'])->group(function () {
     // add
     Route::get('/customers/create', [CustomersController::class, 'create'])->name('customers.create');
@@ -37,7 +39,7 @@ Route::middleware(['check.type:admin'])->group(function () {
     // display (many)
     Route::get('/customers', [CustomersController::class, 'index'])->name('customers.index');
 
-    // diaply (one)
+    // display (one)
     Route::get('/customers/{customer}', [CustomersController::class, 'displayCustomer'])->name('customers.displayCustomer');
 
     // edit
@@ -48,6 +50,7 @@ Route::middleware(['check.type:admin'])->group(function () {
     Route::delete('/customers/{customer}', [CustomersController::class, 'delete'])->name('customers.delete');
 });
 
+// == ADMIN: TRANSACTION MANAGEMENT ==
 Route::middleware(['auth'])->group(function () {
     Route::get('/transactions', [TransactionsController::class, 'index'])->name('transactions.index');
 
@@ -64,5 +67,4 @@ Route::middleware(['auth'])->group(function () {
 
     // delete
     Route::delete('/transactions/{transaction}', [TransactionsController::class, 'destroy'])->name('transactions.destroy');
-
 });
