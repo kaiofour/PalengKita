@@ -27,65 +27,47 @@ class TransactionsController extends Controller
      * Handle the checkout process.
      * Updates Supabase stock and saves to local MySQL.
      */
+
     public function checkout(Request $request)
     {
         // 1. Ensure user is logged in
         if (!Auth::check()) {
-            return response()->json(['error' => 'Your session has expired. Please sign in again.'], 401);
+            return response()->json(['error' => 'Your session has expired.'], 401);
         }
 
         $cart = $request->input('cart');
         
-        // 2. Fix the URL logic to prevent "Could not resolve host: rest"
-        $supabaseUrl = rtrim(env('SUPABASE_URL'), '/');
-        $apiKey = env('SUPABASE_ANON_KEY');
-        
-        if (empty($supabaseUrl) || empty($apiKey)) {
-            Log::error("Checkout Error: Supabase credentials missing in .env file.");
-            return response()->json(['error' => 'Server configuration error.'], 500);
-        }
-
-        $headers = [
-            'apikey' => $apiKey,
-            'Authorization' => 'Bearer ' . $apiKey,
-            'Content-Type' => 'application/json',
-            'Prefer' => 'return=minimal'
-        ];
-
-        $totalTransactionPrice = 0;
-        $localCartData = [];
+        // 2. URL of your PalengkePro (Next.js) API
+        // Make sure your Next.js app is running on this port!
+        $palengkeProUrl = 'http://localhost:3000/api/checkout';
 
         try {
+            // A. Send the "Purchase Order" to PalengkePro
+            $response = Http::post($palengkeProUrl, [
+                'cart' => $cart
+            ]);
+
+            // If PalengkePro says "No", we stop here.
+            if ($response->failed()) {
+                Log::error("PalengkePro API Error: " . $response->body());
+                return response()->json(['error' => 'Inventory system rejected the request.'], 500);
+            }
+
+            // B. Calculate Price & Prepare Data for Local Record
+            $totalTransactionPrice = 0;
+            $localCartData = [];
+
             foreach ($cart as $bundle) {
                 foreach ($bundle['items'] as $item) {
-                    $productId = $item['product_id'] ?? $item['id'];
-                    
-                    // A. Update Supabase Stock (So WebSockets update the UI)
-                    // We combine the base URL and path properly here
-                    $productResponse = Http::withHeaders($headers)
-                        ->get($supabaseUrl . '/rest/v1/products?product_id=eq.' . $productId);
-                    
-                    if ($productResponse->successful() && !empty($productResponse->json())) {
-                        $currentProduct = $productResponse->json()[0];
-                        $newStock = max(0, $currentProduct['quantity'] - $item['quantity']);
-
-                        Http::withHeaders($headers)
-                            ->patch($supabaseUrl . '/rest/v1/products?product_id=eq.' . $productId, [
-                                'quantity' => $newStock
-                            ]);
-                    }
-
-                    // B. Prepare data for the local DB
                     $totalTransactionPrice += $item['overall_price'];
-                    
                     $localCartData[] = [
-                        'product_id' => (string)$productId,
+                        'product_id' => (string)($item['product_id'] ?? $item['id']),
                         'qty' => (string)$item['quantity']
                     ];
                 }
             }
 
-            // C. Save to Local DB
+            // C. Save the Record Locally (So Admin can see the sale)
             Transaction::create([
                 'customer_id'   => Auth::id(), 
                 'overall_price' => $totalTransactionPrice,
@@ -100,6 +82,7 @@ class TransactionsController extends Controller
         }
     }
 
+    
     // ==========================================
     //      ADMIN TRANSACTION MANAGEMENT
     // ==========================================

@@ -36,10 +36,10 @@
                         <li class="list-group-item bg-dark text-white" id="empty-cart-message">Your cart is empty.</li>
                     </ul>
                     <div class="mt-3 text-end">
-                        <button
-                            id="checkout-button"
-                            type="button"
-                            class="btn btn-primary w-100"
+                        <button 
+                            id="checkout-button" 
+                            type="button" 
+                            class="btn btn-primary w-100" 
                             disabled
                         >
                             Checkout
@@ -63,7 +63,8 @@
         renderCart();
 
         document.getElementById('add-bundle-to-cart').addEventListener('click', addToCart);
-        document.getElementById('checkout-button').addEventListener('click', checkout);
+        // FIX: Pass the event object so we can stop default behavior
+        document.getElementById('checkout-button').addEventListener('click', (e) => checkout(e));
     });
 
     // 1. WEBSOCKET CONNECTION
@@ -138,9 +139,8 @@
         });
     }
 
-    // 3. BUNDLE LOGIC (The Fixed Part)
+    // 3. BUNDLE LOGIC
     function addProductToBundle(event) {
-        // Use currentTarget to ensure we get the button even if clicking the text inside
         const btn = event.currentTarget;
         const productId = btn.getAttribute('data-product-id');
         const quantityInput = document.getElementById(`quantity-${productId}`);
@@ -274,11 +274,15 @@
         });
     }
 
-    // 4. CHECKOUT
-    async function checkout() {
+    // 4. CHECKOUT (FIXED FOR POST METHOD)
+    async function checkout(event) {
+        // Prevent default form submission (stops GET request error)
+        if (event) event.preventDefault();
+
         if (customerCart.length === 0) return;
 
         const checkoutBtn = document.getElementById('checkout-button');
+        const originalText = checkoutBtn.innerText;
         checkoutBtn.disabled = true;
         checkoutBtn.innerText = "Processing...";
 
@@ -292,19 +296,23 @@
                 body: JSON.stringify({ cart: customerCart })
             });
 
+            // Parse result to see error message
+            const result = await response.json();
+
             if (response.ok) {
                 alert("Checkout Successful!");
                 customerCart = []; 
                 renderCart(); 
             } else {
-                alert("Something went wrong with the checkout.");
+                console.error("Checkout Failed:", result);
+                alert("Checkout Failed: " + (result.error || "Unknown error"));
             }
         } catch (error) {
-            console.error("Checkout Error:", error);
-            alert("Connection error.");
+            console.error("Network Error:", error);
+            alert("Connection error. Is the server running?");
         } finally {
             checkoutBtn.disabled = false;
-            checkoutBtn.innerText = "Checkout";
+            checkoutBtn.innerText = originalText;
         }
     }
 </script>
