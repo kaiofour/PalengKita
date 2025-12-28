@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class TransactionsController extends Controller
 {
@@ -36,7 +37,7 @@ class TransactionsController extends Controller
         }
 
         $cart = $request->input('cart');
-        
+
         // 2. URL of your PalengkePro (Next.js) API
         // Make sure your Next.js app is running on this port!
         $palengkeProUrl = 'http://localhost:3000/api/checkout';
@@ -69,9 +70,9 @@ class TransactionsController extends Controller
 
             // C. Save the Record Locally (So Admin can see the sale)
             Transaction::create([
-                'customer_id'   => Auth::id(), 
+                'customer_id'   => Auth::id(),
                 'overall_price' => $totalTransactionPrice,
-                'cart'          => $localCartData, 
+                'cart'          => $localCartData,
             ]);
 
             return response()->json(['message' => 'Checkout successful']);
@@ -82,7 +83,7 @@ class TransactionsController extends Controller
         }
     }
 
-    
+
     // ==========================================
     //      ADMIN TRANSACTION MANAGEMENT
     // ==========================================
@@ -101,12 +102,12 @@ class TransactionsController extends Controller
             'user_id'       => 'required|integer|exists:users,id',
             'overall_price' => 'required|numeric|min:0',
             'cart'          => 'required|array',
-            'cart.*.product_id' => 'required|integer|min:1',
+            'cart.*.product_id' => 'required|string',
             'cart.*.qty'        => 'required|integer|min:1',
         ]);
 
         Transaction::create([
-            'customer_id'   => $validated['user_id'], 
+            'customer_id'   => $validated['user_id'],
             'overall_price' => $validated['overall_price'],
             'cart'          => $validated['cart'],
         ]);
@@ -119,7 +120,52 @@ class TransactionsController extends Controller
     public function index()
     {
         $transactions = Transaction::orderByDesc('created_at')->paginate(5);
-        return view('transactions.index', compact('transactions'));
+
+        // Collect ALL product IDs from ALL cart items (multi products supported)
+        $productIds = collect($transactions->items())
+            ->flatMap(function ($t) {
+                $cart = $t->cart;
+
+                // handle old rows where cart is stored as JSON string
+                if (is_string($cart)) {
+                    $cart = json_decode($cart, true) ?? [];
+                }
+
+                if (!is_array($cart)) return [];
+
+                return collect($cart)
+                    ->map(function ($item) {
+                        $id = $item['product_id'] ?? $item['id'] ?? null;
+                        return $id !== null ? trim((string)$id) : null;
+                    })
+                    ->filter(fn ($id) => !empty($id) && Str::isUuid($id));
+
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        $productMap = [];
+
+        if (!empty($productIds)) {
+            $res = Http::post('http://localhost:3000/api/products/by-ids', [
+                'ids' => $productIds
+            ]);
+
+            if (!$res->ok()) {
+                Log::error('products/by-ids failed', [
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                    'ids' => $productIds,
+                ]);
+            } else {
+                $productMap = collect($res->json())
+                    ->mapWithKeys(fn ($p) => [trim((string)$p['product_id']) => $p['product_name']])
+                    ->toArray();
+            }
+        }
+
+        return view('transactions.index', compact('transactions', 'productMap'));
     }
 
     // SHOW SINGLE TRANSACTION
@@ -142,12 +188,12 @@ class TransactionsController extends Controller
             'user_id'       => 'required|integer|exists:users,id',
             'overall_price' => 'required|numeric|min:0',
             'cart'          => 'required|array',
-            'cart.*.product_id' => 'required|integer|min:1',
+            'cart.*.product_id' => 'required|string',
             'cart.*.qty'        => 'required|integer|min:1',
         ]);
 
         $transaction->update([
-            'customer_id'   => $validated['user_id'], 
+            'customer_id'   => $validated['user_id'],
             'overall_price' => $validated['overall_price'],
             'cart'          => $validated['cart'],
         ]);
@@ -163,4 +209,10 @@ class TransactionsController extends Controller
         return redirect()->route('transactions.index')
                          ->with('success', 'Transaction deleted successfully.');
     }
+
+    public function test(){
+        return "API is online";
+    }
+
+
 }

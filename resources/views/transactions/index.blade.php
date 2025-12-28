@@ -33,27 +33,43 @@
                             <td>{{ $transaction->transaction_id }}</td>
                             <td>{{ $transaction->customer_id }}</td>
                             <td>
-                                {{-- ✅ FIXED: Direct Loop (No json_decode) --}}
                                 <ul class="mb-0 ps-3 small">
-                                    @if(is_array($transaction->cart) || is_object($transaction->cart))
-                                        @foreach($transaction->cart as $item)
-                                            <li>
-                                                ID: {{ $item['product_id'] ?? $item['id'] ?? 'N/A' }} 
-                                                <br>
-                                                <span class="text-info">Qty: {{ $item['qty'] ?? $item['quantity'] ?? 0 }}</span>
-                                            </li>
-                                        @endforeach
-                                    @else
-                                        <li class="text-danger">Invalid Cart Data</li>
-                                    @endif
+                                @php
+                                    $cart = $transaction->cart;
+
+                                    // support old rows where cart was JSON string
+                                    if (is_string($cart)) {
+                                        $cart = json_decode($cart, true) ?? [];
+                                    }
+                                @endphp
+
+                                @if(is_array($cart))
+                                    @foreach($cart as $item)
+                                        @php
+                                            // support both product_id and id
+                                            $pid = trim((string)($item['product_id'] ?? $item['id'] ?? ''));
+                                            $name = $pid !== '' ? ($productMap[$pid] ?? 'Unknown Product') : 'Unknown Product';
+                                            $qty  = $item['qty'] ?? $item['quantity'] ?? 0;
+                                        @endphp
+
+                                        <li>
+                                            <strong>{{ $name }}</strong><br>
+                                            <span class="text-info">Qty: {{ $qty }}</span>
+                                            <div class="text-muted small">ID: {{ $pid }}</div>
+                                        </li>
+                                    @endforeach
+                                @else
+                                    <li class="text-danger">Invalid Cart Data</li>
+                                @endif
                                 </ul>
+
                             </td>
                             <td>${{ number_format($transaction->overall_price, 2) }}</td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <a href="{{ route('transactions.show', $transaction) }}" class="btn btn-outline-warning btn-sm">View</a>
                                     <a href="{{ route('transactions.edit', $transaction) }}" class="btn btn-outline-info btn-sm">Edit</a>
-                                    
+
                                     <form action="{{ route('transactions.destroy', $transaction) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -69,7 +85,7 @@
                     @endforelse
                 </tbody>
             </table>
-            
+
             <div class="d-flex justify-content-end mt-4">
                 {{ $transactions->links('vendor.pagination.bootstrap-5-dark') }}
             </div>

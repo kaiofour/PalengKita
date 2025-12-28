@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    
+
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>
@@ -16,6 +16,7 @@
     </title>
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 </head>
+
 <body class="bg-dark">
     <div id="app">
         <nav class="navbar navbar-expand-md navbar-light bg-white shadow-sm">
@@ -84,5 +85,7 @@
             @yield('content')
         </main>
     </div>
+
+    @stack('scripts')
 </body>
 </html>
