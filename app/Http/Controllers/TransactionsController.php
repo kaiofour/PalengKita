@@ -5,9 +5,89 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Transaction;
 use App\Models\User;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class TransactionsController extends Controller
 {
+    // ==========================================
+    //      CUSTOMER MARKETPLACE & CHECKOUT
+    // ==========================================
+
+    /**
+     * Display the purchase page for customers.
+     */
+    public function marketplace()
+    {
+        return view('customer.purchases.index');
+    }
+
+    /**
+     * Handle the checkout process.
+     * Updates Supabase stock and saves to local MySQL.
+     */
+
+    public function checkout(Request $request)
+    {
+        // 1. Ensure user is logged in
+        if (!Auth::check()) {
+            return response()->json(['error' => 'Your session has expired.'], 401);
+        }
+
+        $cart = $request->input('cart');
+
+        // 2. URL of your PalengkePro (Next.js) API
+        // Make sure your Next.js app is running on this port!
+        $palengkeProUrl = 'http://localhost:3000/api/checkout';
+
+        try {
+            // A. Send the "Purchase Order" to PalengkePro
+            $response = Http::post($palengkeProUrl, [
+                'cart' => $cart
+            ]);
+
+            // If PalengkePro says "No", we stop here.
+            if ($response->failed()) {
+                Log::error("PalengkePro API Error: " . $response->body());
+                return response()->json(['error' => 'Inventory system rejected the request.'], 500);
+            }
+
+            // B. Calculate Price & Prepare Data for Local Record
+            $totalTransactionPrice = 0;
+            $localCartData = [];
+
+            foreach ($cart as $bundle) {
+                foreach ($bundle['items'] as $item) {
+                    $totalTransactionPrice += $item['overall_price'];
+                    $localCartData[] = [
+                        'product_id' => (string)($item['product_id'] ?? $item['id']),
+                        'qty' => (string)$item['quantity']
+                    ];
+                }
+            }
+
+            // C. Save the Record Locally (So Admin can see the sale)
+            Transaction::create([
+                'customer_id'   => Auth::id(),
+                'overall_price' => $totalTransactionPrice,
+                'cart'          => $localCartData,
+            ]);
+
+            return response()->json(['message' => 'Checkout successful']);
+
+        } catch (\Exception $e) {
+            Log::error("Checkout Error: " . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+
+    // ==========================================
+    //      ADMIN TRANSACTION MANAGEMENT
+    // ==========================================
+
     // DISPLAY FORM
     public function create()
     {
@@ -15,35 +95,80 @@ class TransactionsController extends Controller
         return view('transactions.create', compact('users'));
     }
 
-    //STORE TRANSACTION
+    // STORE TRANSACTION (Admin Manual)
     public function store(Request $request)
     {
         $validated = $request->validate([
             'user_id'       => 'required|integer|exists:users,id',
             'overall_price' => 'required|numeric|min:0',
             'cart'          => 'required|array',
-            'cart.*.product_id' => 'required|integer|min:1',
+            'cart.*.product_id' => 'required|string',
             'cart.*.qty'        => 'required|integer|min:1',
         ]);
 
         Transaction::create([
-            'customer_id'   => $validated['user_id'], 
+            'customer_id'   => $validated['user_id'],
             'overall_price' => $validated['overall_price'],
-            'cart'          => json_encode($validated['cart']),
+            'cart'          => $validated['cart'],
         ]);
 
         return redirect()->route('transactions.index')
                         ->with('success', 'Transaction created successfully.');
     }
 
-    //LIST TRANSACTIONS
+    // LIST TRANSACTIONS
     public function index()
     {
         $transactions = Transaction::orderByDesc('created_at')->paginate(5);
-        return view('transactions.index', compact('transactions'));
+
+        // Collect ALL product IDs from ALL cart items (multi products supported)
+        $productIds = collect($transactions->items())
+            ->flatMap(function ($t) {
+                $cart = $t->cart;
+
+                // handle old rows where cart is stored as JSON string
+                if (is_string($cart)) {
+                    $cart = json_decode($cart, true) ?? [];
+                }
+
+                if (!is_array($cart)) return [];
+
+                return collect($cart)
+                    ->map(function ($item) {
+                        $id = $item['product_id'] ?? $item['id'] ?? null;
+                        return $id !== null ? trim((string)$id) : null;
+                    })
+                    ->filter(fn ($id) => !empty($id) && Str::isUuid($id));
+
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        $productMap = [];
+
+        if (!empty($productIds)) {
+            $res = Http::post('http://localhost:3000/api/products/by-ids', [
+                'ids' => $productIds
+            ]);
+
+            if (!$res->ok()) {
+                Log::error('products/by-ids failed', [
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                    'ids' => $productIds,
+                ]);
+            } else {
+                $productMap = collect($res->json())
+                    ->mapWithKeys(fn ($p) => [trim((string)$p['product_id']) => $p['product_name']])
+                    ->toArray();
+            }
+        }
+
+        return view('transactions.index', compact('transactions', 'productMap'));
     }
 
-    //SHOW SINGLE TRANSACTION
+    // SHOW SINGLE TRANSACTION
     public function show(Transaction $transaction)
     {
         return view('transactions.transaction', compact('transaction'));
@@ -63,14 +188,14 @@ class TransactionsController extends Controller
             'user_id'       => 'required|integer|exists:users,id',
             'overall_price' => 'required|numeric|min:0',
             'cart'          => 'required|array',
-            'cart.*.product_id' => 'required|integer|min:1',
+            'cart.*.product_id' => 'required|string',
             'cart.*.qty'        => 'required|integer|min:1',
         ]);
 
         $transaction->update([
-            'customer_id'   => $validated['user_id'], 
+            'customer_id'   => $validated['user_id'],
             'overall_price' => $validated['overall_price'],
-            'cart'          => json_encode($validated['cart']),
+            'cart'          => $validated['cart'],
         ]);
 
         return redirect()->route('transactions.index')
@@ -84,5 +209,10 @@ class TransactionsController extends Controller
         return redirect()->route('transactions.index')
                          ->with('success', 'Transaction deleted successfully.');
     }
+
+    public function test(){
+        return "API is online";
+    }
+
 
 }

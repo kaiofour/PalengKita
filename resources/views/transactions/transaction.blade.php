@@ -21,23 +21,31 @@
                     </p>
 
                     <p class="card-text">
-                        <strong>Overall Price:</strong> {{ $transaction->overall_price }}
+                        <strong>Overall Price:</strong> 
+                        ${{ number_format($transaction->overall_price, 2) }}
                     </p>
 
-                    @php
-                        $cart = json_decode($transaction->cart, true);
-                    @endphp
-
+                    {{-- 
+                        ✅ FIXED: Removed json_decode. 
+                        We use $transaction->cart directly because the Model casts it to an array.
+                    --}}
                     <p class="card-text"><strong>Cart:</strong></p>
 
                     <ul class="list-group bg-dark">
-                        @foreach($cart as $item)
-                            <li class="list-group-item bg-secondary text-white">
-                                Product ID: {{ $item['product_id'] }}  
-                                <br>
-                                Quantity: ({{ $item['qty'] }}x)
+                        {{-- Safety check to ensure cart is not null --}}
+                        @if(is_array($transaction->cart) || is_object($transaction->cart))
+                            @foreach($transaction->cart as $item)
+                                <li class="list-group-item bg-secondary text-white">
+                                    Product ID: {{ $item['product_id'] ?? $item['id'] ?? 'N/A' }}  
+                                    <br>
+                                    Quantity: ({{ $item['qty'] ?? $item['quantity'] ?? 0 }}x)
+                                </li>
+                            @endforeach
+                        @else
+                            <li class="list-group-item bg-danger text-white">
+                                Error: Invalid cart data.
                             </li>
-                        @endforeach
+                        @endif
                     </ul>
 
                     <a href="{{ route('transactions.index') }}" class="btn btn-secondary mt-3">
